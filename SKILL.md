@@ -28,21 +28,22 @@ This is the Solana / SVM counterpart to `iykes-web3-bughunt-skill` (EVM). Same
 discipline (fork/sim only, honest severity, private disclosure, coverage
 tracking). Different runtime model (accounts, PDAs, CPI, rent, Token-2022).
 
-### Pair with Solana audit skills
+### Pair with other Solana audit material
 
-After Step 3 has source (or a solid surface map), also load companion material
-when available:
+After Step 3 has source (or a solid surface map), also load companion checklists
+or pattern libraries when available in your environment (examples below - names
+vary by install):
 
-| Skill / ref | When |
+| Material | When |
 |---|---|
-| `smart-contract-audit` + `anchor-checks.md` | Full multi-expert pass; Anchor constraint checklist |
-| `reference/anchor/fv-anc-*` | Deep patterns: PDA, CPI, signer, type cosplay, close |
-| `reference/anchor/protocols/*` | Product type: amm-dex, lending, staking, oracle, governance |
-| `tiny-auditor` | Critical-only, low false-positive finding format |
-| `solana-surgeon-skill` | Surgical reasoning discipline on Solana state machines |
+| Anchor constraint / account validation checklist | Full pass over `#[account(...)]`, seeds, signers |
+| Anchor vulnerability pattern library (PDA, CPI, type cosplay, close) | Deep pattern matching |
+| Protocol-type notes (AMM, lending, staking, oracle, governance) | Product-specific heuristics |
+| Critical-only / low false-positive severity rubric | Tightening severity before disclosure |
+| Solana systems / state-machine reasoning notes | Complex multi-ix protocols |
 
 This playbook stays the **lead** for bounty hunt intake, gates, disclosure, and
-honest bounds. Companion skills deepen analysis; they do not replace Steps 1-10.
+honest bounds. Companions deepen analysis; they do not replace Steps 1-10.
 
 ### Optional corpus (pattern mining)
 

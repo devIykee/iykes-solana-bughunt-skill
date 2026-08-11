@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.1] - 2026-08-11
+
+### Changed
+
+- README and companion wording are agent-agnostic (any coding agent or human),
+  not tied to a single host product or install path.
+
 ## [v0.1.0] - 2026-08-11
 
 ### Added
