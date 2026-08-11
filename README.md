@@ -13,7 +13,7 @@ calls - severity, root cause, exploit design, disclosure strategy - stay manual.
 | | |
 |---|---|
 | Skill id | `iykes-solana-bughunt-skill` |
-| Companion (EVM) | [iykes-web3-bughunt-skill](https://github.com/devIykee/iykes-web3-bughunt-skill) |
+| Companion (EVM) | [iykes-evm-bughunt-skill](https://github.com/devIykee/iykes-evm-bughunt-skill) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
