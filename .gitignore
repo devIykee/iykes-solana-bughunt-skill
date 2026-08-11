@@ -1,0 +1,13 @@
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+target/
+node_modules/
+.anchor/
+test-ledger/
+poc/
+hunts/
+reports/
+coverage.md
