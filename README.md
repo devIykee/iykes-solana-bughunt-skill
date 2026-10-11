@@ -8,7 +8,7 @@ the scripts in [`tools/`](tools/) for every mechanical probe (RPC checks, progra
 discovery, surface map, auth triage, PoC scaffold, report/DM skeletons). Judgment
 calls - severity, root cause, exploit design, disclosure strategy - stay manual.
 
-**Researcher identity for reports and DMs:** [deviykee](https://x.com/deviykee) / **Iyke**.
+**Researcher identity for reports and DMs:** [deviykee](https://github.com/devIykee/security-research) / **Iyke**.
 
 | | |
 |---|---|

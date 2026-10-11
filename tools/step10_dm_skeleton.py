@@ -34,7 +34,7 @@ def main() -> int:
     poc_extra = args.poc_note or ""
     body = f"""Hey {args.project}.
 
-I'm Iyke, a security researcher. (http://x.com/deviykee)
+I'm Iyke, a security researcher. (https://github.com/devIykee/security-research)
 
 I've found and verified a {args.severity} vulnerability in {args.project}'s {args.component} on Solana ({args.cluster}) that {args.impact}. It's live-exploitable right now on {args.scope}, so it's time-sensitive.
 
