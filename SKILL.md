@@ -11,8 +11,11 @@ description: >-
   subtasks. After surface map, run foundation maps, multi-angle adversarial
   passes, product-type hunts (bonding curve, AMM, vault, lending, perps, OTC,
   bridge), and honest severity (including kill temporary-vs-persistent
-  conditions). Maintain coverage.md incrementally (files opened, paths traced,
-  %, exclusions); never imply a complete audit when coverage is low.
+  conditions). Keep a Low, Medium, or High when it is a lead or attack-path step
+  toward a Critical, and report every confirmed Low, Medium, or High at its real
+  severity. Always check the frontend for exposed secrets (Step 11). Maintain
+  coverage.md incrementally (files opened, paths traced, %, exclusions); never
+  imply a complete audit when coverage is low.
   Use when the user names a Solana target (project, program id, repo, or
   website) and wants it audited for bounties, or says "Solana hunt", "Anchor
   audit", "find Solana bugs", "SVM bughunt".
@@ -108,6 +111,8 @@ PROJECT_NAME   : <e.g. example.fun>
 X_HANDLE       : <e.g. @exampledotfun>       # only if known; private disclosure channel
 WEBSITE        : <https://...>               # app URL
 DOCS           : <https://docs...>           # only if known
+SECURITY_EMAIL : <security@... or omit>      # fill in Step 10A from a quoted official page
+DISCLOSURE     : <immunefi URL / "discretionary" / omit>
 CLUSTER        : <mainnet-beta | devnet | custom>
 RPC            : <https://...>               # confirm in Step 1
 EXPLORER       : <https://explorer.solana.com | solscan | custom>
@@ -158,6 +163,31 @@ export SOLANA_URL="$RPC"
     If coverage is low, say so explicitly in the report and user status; never
     imply a complete audit was performed.
 11. **No em dashes** in reports or DMs (use commas, periods, or a normal hyphen).
+12. **Overcome blockers proactively.** When you hit a blocker (closed-source
+    program, missing IDL, unsupported cluster, unavailable data, missing tool),
+    actively search for and install/use something that solves it: decompilers,
+    disassemblers (`solana program dump` + a BPF/sBPF disassembler), explorers,
+    RPC providers, APIs, or alternative data sources. Install packages with
+    `cargo`/`pip`/`npm` when needed and write small scripts to automate repeats.
+    Do NOT stop at "no source" or "tool not installed"; find a way forward and
+    document the tools/methods so future hunts benefit.
+13. **Chain leads to a Critical.** Hunt and keep a Low, Medium, or High when it
+    can be a step on an attack path to a Critical. A usable step is a missing
+    constraint, a weak invariant, griefing, a rounding leak, an oracle gap, a
+    trust assumption, or a partial auth bypass that combines with another bug, a
+    reachable state, or a second instruction into unauthenticated theft, a
+    freeze, or unbounded loss. Record the lead at its honest severity (rule 2).
+    Name the missing piece that would make the chain Critical, and try that chain
+    before you close the path. If the chain is confirmed with a sim/bankstest
+    PoC, report the chain severity, not the piece alone. If the second piece is
+    missing, keep a lead line that names what is missing. Drop the lead only when
+    the chain is impossible: the state is unreachable, the auth cannot be
+    bypassed, or the condition restores and leaves victims whole. Do not upgrade
+    the piece by itself. Report every confirmed Low, Medium, and High, whether or
+    not it chains. Write the Step 9 report and include it in the private
+    disclosure at that severity. Do not leave it only in hunt notes, and do not
+    wait for a Critical before you report it. Killed findings and false positives
+    stay out of the report.
 
 ---
 
@@ -264,7 +294,9 @@ instead of hanging. Smoke-check: `./tools/selftest.sh`.
 | `tools/step4_auth_triage.sh` | 4 | `<SRC_ROOT>` | constraint/signer/CPI grep scoreboard | Free-win missing-auth / loose seeds |
 | `tools/step7_poc_scaffold.sh` | 7 | `<POC_DIR> [anchor\|native]` | Anchor or banks-client PoC skeleton | Repeatable sim-only proof setup |
 | `tools/step9_report_skeleton.py` | 9 | INTAKE + severity + title (+ optional) | filled Step 9 report skeleton | Same report shape every hunt |
+| `tools/step10_contact_hunt.sh` | 10A | `<URL> [URL ...]` | emails, bounty-platform links, quotes; **GATE** | Real security inbox, not a guess |
 | `tools/step10_dm_skeleton.py` | 10 | project/severity/cluster/component/impact | filled first DM text | Consistent private first contact |
+| `tools/step11_frontend_security.sh` | 11 | `<WEBSITE> [OUTPUT_DIR]` | API keys, tokens, RPC endpoints, pubkeys | Catch hardcoded secrets in frontend |
 | `tools/selftest.sh` | - | none | usage/exit smoke for all tools | Catch broken tools before a hunt |
 
 Optional static / helper commands (when available):
@@ -651,6 +683,11 @@ audits (OTC, launchpads, vaults, lending, perps, bridges, governance).
 Separate **owner-by-design centralization** (trust-risk, lower) from a
 **permissionless exploit** (the real Critical). Never claim the former as the latter.
 
+Also write down a Low, Medium, or High that is not a Critical by itself when it
+can be combined into one (operating rule 13). Do not drop it only because the
+single bug is below Critical. A confirmed Low, Medium, or High is reported at
+that severity.
+
 ---
 
 ## STEP 7 - Prove it locally (mandatory)
@@ -711,6 +748,13 @@ Write the number you can defend, with the bound stated. Do not round up.
 5. Temporary condition killed (can victim self-recover cheaply)?
 Verdict: CONFIRMED / FALSE POSITIVE / NEEDS MORE WORK.
 
+**Chain lead (operating rule 13).** Before you close a path as not Critical,
+apply that rule: write the honest severity of the piece, name the second bug,
+role, state, or instruction that would make it Critical, and trace that piece if
+it exists. A chain confirmed with a sim/bankstest PoC is reported at the chain
+severity. A missing piece stays as a lead line. Killed chains go in hunt notes.
+A confirmed Low, Medium, or High is still reported at that severity.
+
 ---
 
 ## STEP 9 - Report (fill-in template)
@@ -719,8 +763,12 @@ Always use researcher name **deviykee**. Open every report with a plain-language
 "What this means" section so a non-technical reader understands the danger before
 any code. Do not use em dashes.
 
-Keep a **master findings table** for the hunt (ID, severity, status, component)
-and update it when findings are killed or reclassified.
+Keep a **master findings table** for the hunt (ID, severity, status, component,
+chain-to-critical) and update it when findings are killed, reclassified, or kept
+as a chain lead. `chain-to-critical` is the missing or confirmed next step, or
+`n/a` when the finding cannot chain. Report every confirmed Low, Medium, and
+High (operating rule 13), including ones that do not chain, at the finding's real
+severity. One file per finding, or one section each in a multi-finding pack.
 
 **Coverage honesty in the report:** cite `coverage.md` summary (`Coverage: X/Y
 (Z%)`). If Z is low or core modules were only partially traced, state that the
@@ -730,7 +778,7 @@ Scaffold:
 ```bash
 python3 ./tools/step9_report_skeleton.py \
   --project "<PROJECT_NAME>" \
-  --severity "<High/Med/Crit>" \
+  --severity "<Low/Medium/High/Critical>" \
   --title "<one-line title>" \
   --cluster "<CLUSTER>" \
   --program "<PROGRAM_ID>" \
@@ -742,7 +790,7 @@ python3 ./tools/step9_report_skeleton.py \
 ```markdown
 # <PROJECT> - <SEVERITY>: <one-line title>
 **Researcher:** deviykee
-**Severity:** <High/Med/Crit> - <why; state the bound>
+**Severity:** <Low/Medium/High/Critical> - <why; state the bound>
 **Status:** Verified in local simulator / Anchor test. No mainnet state touched.
 **Disclosure:** Private. Live-exploitable now.  <!-- if applicable -->
 
@@ -787,16 +835,65 @@ For multi-finding private packs, also ship:
 - structured checklist PASS/FAIL
 - adversarial angle scoreboard (path attempted -> result)
 - **coverage.md**
+- **reports/contacts.md** (official inbox + source URL + quote)
 
 ---
 
 ## STEP 10 - Disclose and get paid
 
-Run this **after** the report file exists. Write the first DM as a separate file
-(e.g. `reports/dm-<project>.md`). Do not put full exploit steps in the first DM.
+Run this **after** the report file exists. Disclose a confirmed Low, Medium, or
+High the same way as a Critical (operating rule 13). The DM severity matches the
+report. Do not hold a finding back because it is not Critical. Write the first DM
+as a separate file (e.g. `reports/dm-<project>.md`). Do not put full exploit
+steps in the first DM.
 
-1. **Find the private channel** from X_HANDLE (verified account / security email).
-   Never a public thread while it's live.
+### 10A. Official contacts (mandatory every hunt)
+
+Do not guess `security@` or DM the first @handle search returns. Build a
+`reports/contacts.md` with **URL + exact quote** for every inbox you will use.
+An email without a cited official page is not a contact.
+
+Hunt in this order until you have a **bug-report** inbox (security@ / Immunefi /
+HackerOne / Cantina beats a generic contact@):
+
+1. Official docs FAQ / "security" / "bug bounty" / "contact" pages
+   (`docs.*`, `help.*`, GitHub `docs/`, GitBook `.md` URLs).
+2. `SECURITY.md`, `security.txt` (`/.well-known/security.txt`), Immunefi /
+   HackerOne / Cantina / Code4rena program page for this project (not a
+   lookalike).
+3. Official forum / governance post **by a founder or staff account** that names
+   a report address. Prefer `.json` API if the HTML hides emails behind
+   Cloudflare (`data-cfemail`).
+4. Official GitHub org **People** + matching verified X bios. Founders are backup
+   DMs, not the first inbox.
+5. **GitHub search** - use `gh search` to find security contacts:
+   ```bash
+   gh search code "filename:SECURITY.md" org:projectname
+   gh search code "security@" org:projectname --language markdown
+   gh search code "bug bounty OR bounty program" org:projectname
+   gh search commits "security contact" repo:projectname/repo
+   ```
+
+Then verify socials:
+
+- Official X: verified org/account whose bio links the **same** website as
+  INTAKE. Reject lookalikes (one-letter typos, extra `l`/`o`, copied logo).
+- Discord / Telegram: only the invite printed on official docs. FAQ "we have no
+  Telegram" means any TG group is a scam.
+- Never describe a live bug in a public forum, Discord, tweet, or GitHub issue.
+
+```bash
+./tools/step10_contact_hunt.sh "<DOCS_FAQ_URL>" "<WEBSITE>" "<FORUM_OR_SECURITY_MD>"
+# write reports/contacts.md from the hits: Role | Address | Source URL | Quote
+```
+
+Show the user the **links and quotes** before sending. Prefer `security@` (or the
+bounty platform) for the report; `contact@` is general and may be CC only.
+
+Gate: no cited official inbox and no verified org X -> **do not send**. Tell the
+user what you searched and what is missing.
+
+1. **Use the inbox from 10A.** Never a public thread while it's live.
 2. **First message (short):** use the template below. Who you are, plain impact,
    severity + bound, verified how, nothing touched, offer full report + PoC privately.
 3. **Share via a PRIVATE repo** (add them as collaborator) or attach files. Never
@@ -847,6 +944,317 @@ Who's the right person, or who do I talk to on the team?
 
 ---
 
+## STEP 11 - Frontend Security Audit (always check)
+
+**Run this step for every hunt, regardless of product type.** Frontend
+vulnerabilities can be as critical as on-chain program bugs, especially exposed
+API keys that control RPC access, relayer/fee sponsorship, or authentication.
+
+### 11A. Bundle analysis - extract frontend secrets
+
+Solana apps (Vite / Next) bundle JavaScript into `/assets/*.js` or
+`/_next/static/chunks/*.js`. These files often contain hardcoded secrets that
+should never be client-side.
+
+**Create and run the frontend analysis script:**
+
+```bash
+# Save as tools/step11_frontend_security.sh
+cat > tools/step11_frontend_security.sh << 'SCRIPT'
+#!/bin/bash
+# Frontend Security Scanner (Solana)
+WEBSITE=$1
+OUTPUT_DIR=${2:-"frontend-security"}
+
+mkdir -p "$OUTPUT_DIR"
+
+echo "=== Frontend Security Analysis for $WEBSITE ==="
+
+# 1. Fetch main page
+echo "[1] Fetching main page..."
+curl -s "$WEBSITE" -H "User-Agent: Mozilla/5.0" -o "$OUTPUT_DIR/index.html"
+
+# 2. Extract JavaScript files
+echo "[2] Extracting JavaScript files..."
+grep -oP 'src="[^"]*\.js[^"]*"' "$OUTPUT_DIR/index.html" | \
+  sed 's/src="//g' | sed 's/"//g' | sort -u > "$OUTPUT_DIR/js_files.txt"
+
+echo "Found $(wc -l < "$OUTPUT_DIR/js_files.txt") JavaScript files"
+
+# 3. Download largest bundle (usually the main app)
+MAIN_JS=$(head -1 "$OUTPUT_DIR/js_files.txt")
+if [[ $MAIN_JS == /* ]]; then
+    MAIN_JS="${WEBSITE}${MAIN_JS}"
+elif [[ $MAIN_JS != http* ]]; then
+    MAIN_JS="${WEBSITE}/${MAIN_JS}"
+fi
+
+echo "[3] Downloading main bundle: $MAIN_JS"
+curl -s "$MAIN_JS" -o "$OUTPUT_DIR/bundle.js"
+
+# 4. Search for exposed credentials
+echo ""
+echo "=== CRITICAL: API Keys & Tokens ==="
+grep -oiE '(api[_-]?key|apikey|secret[_-]?key|access[_-]?token)["\s:=]+[a-zA-Z0-9_-]{20,}' "$OUTPUT_DIR/bundle.js" | head -20
+
+echo ""
+echo "=== Bearer Tokens ==="
+grep -oiE '(bearer|authorization)[":\s]+(bearer\s+)?[a-zA-Z0-9_-]{20,}' "$OUTPUT_DIR/bundle.js" | head -10
+
+# 5. Extract Solana program ids / pubkeys (base58, 32-44 chars)
+echo ""
+echo "=== Solana Addresses (program ids / pubkeys) ==="
+grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' "$OUTPUT_DIR/bundle.js" | \
+  grep -v '^1111111111111111111111111111111111111111111$' | \
+  sort -u | head -30 > "$OUTPUT_DIR/pubkeys.txt"
+echo "Found $(wc -l < "$OUTPUT_DIR/pubkeys.txt") unique base58 candidates (verify against known programs)"
+
+# 6. RPC endpoints with keys (Solana providers)
+echo ""
+echo "=== RPC Endpoints (check for embedded keys) ==="
+grep -oiE 'https?://[^"'\'']+\.(helius-rpc|helius|quiknode|quicknode|alchemy|triton|syndica|ankr|rpcpool|genesysgo)\.[^"'\'']+' "$OUTPUT_DIR/bundle.js" | \
+  sort -u
+
+# 7. API endpoints
+echo ""
+echo "=== API Endpoints ==="
+grep -oiE 'https?://[a-zA-Z0-9.-]+/(api|v1|v2|graphql)[^"'\'']*' "$OUTPUT_DIR/bundle.js" | \
+  sort -u | head -20
+
+# 8. WebSocket endpoints
+echo ""
+echo "=== WebSocket Endpoints ==="
+grep -oiE 'wss?://[^"'\'']+' "$OUTPUT_DIR/bundle.js" | sort -u
+
+# 9. Database connection strings
+echo ""
+echo "=== Database/Private Data Exposure ==="
+grep -iE '(mongodb|postgres|mysql|redis|connection.*string)' "$OUTPUT_DIR/bundle.js" | wc -l
+echo "Found potential database references"
+
+# 10. localStorage/sessionStorage (private data leakage)
+echo ""
+echo "=== Local Storage Keys ==="
+grep -oE 'localStorage\.(get|set)Item\([^)]+\)' "$OUTPUT_DIR/bundle.js" | \
+  sort -u | head -20
+
+# 11. Authentication / keypair patterns
+echo ""
+echo "=== Auth / Keypair Patterns (private key leakage is CRITICAL) ==="
+grep -oiE '(jwt|session|auth|token|secretKey|privateKey|Keypair\.fromSecretKey)[^,;]{0,50}' "$OUTPUT_DIR/bundle.js" | head -15
+
+echo ""
+echo "=== Analysis complete. Results in $OUTPUT_DIR/ ==="
+echo "Review bundle.js for hardcoded secrets and credentials."
+SCRIPT
+
+chmod +x tools/step11_frontend_security.sh
+```
+
+**Run the analysis:**
+```bash
+./tools/step11_frontend_security.sh "$WEBSITE" hunt-dir/frontend-security
+```
+
+### 11B. Critical patterns to check
+
+For each finding, assess severity and impact:
+
+**CRITICAL findings:**
+1. **Leaked keypair / private key** (`Keypair.fromSecretKey`, hardcoded 64-byte
+   array, base58 secret). Impact: direct control of a signing wallet (fee payer,
+   admin, relayer). Action: rotate/retire the key immediately, move signing
+   server-side, check on-chain activity for that pubkey.
+2. **Relayer / fee-sponsorship keys** (Octane, gasless relayer, Jito tip auth,
+   sponsor endpoints). Impact: direct financial drain (SOL / fees charged to the
+   project). Action: rotate, estimate potential loss, add spending limits.
+3. **Bearer authentication tokens** (`Authorization.*Bearer`, hardcoded 32+ char
+   secrets). Impact: auth bypass, impersonation. Action: rotate, audit backend.
+4. **Database credentials** (`postgres://`, `mongodb://`, connection strings).
+   Impact: direct DB access, data breach. Action: rotate, check exfiltration.
+5. **Admin / master API keys.** Impact: privileged access, service abuse.
+   Action: rotate and move to backend.
+
+**HIGH findings:**
+6. **RPC endpoint keys** (Helius, QuickNode, Triton, Alchemy, Syndica, Ankr).
+   Pattern: `https://*.helius-rpc.com/?api-key=KEY`, `/<KEY>/` path keys.
+   Impact: rate-limit exhaustion, monitoring, cost. Mitigation: check for origin
+   / referrer allowlisting on the provider.
+7. **Third-party API keys** (price feeds, indexers like Birdeye, The Graph).
+   Impact: service abuse, rate limiting, unexpected bills. Action: backend proxy.
+
+**MEDIUM findings:**
+8. **Private user data in localStorage** (unencrypted). Impact: XSS can steal it.
+   Action: encrypt sensitive data, use httpOnly cookies.
+9. **Internal API endpoints exposed** (`/internal/`, `/admin/`, `/debug/`).
+   Impact: information disclosure. Action: verify auth requirements.
+10. **WebSocket endpoints** (oracle feeds, real-time data). Impact: front-running,
+    competitive intel. Action: consider whether a direct client connection is
+    necessary.
+
+### 11C. Relayer / fee-sponsorship services
+
+If you find keys for gasless / relayer services (Octane, a custom sponsor
+endpoint, Jito auth):
+
+```bash
+grep -i "octane\|relayer\|sponsor\|feePayer\|gasless\|jito" hunt-dir/frontend-security/bundle.js | \
+  grep -oE "(sponsor|feePayer|relay|tip|bundle)" | sort -u
+```
+
+**Critical questions:**
+1. Is fee sponsorship enabled? (`sponsor`, `feePayer`, relayer endpoint)
+2. What is the potential financial impact? (SOL/fees per op x expected usage)
+3. Are there spending limits configured?
+4. Can this be automated to drain the budget?
+
+**Financial impact calculation:**
+```
+Estimated Loss = (Operations per day x cost per op x days until detected)
+Example: 10,000 ops x $0.01 x 7 days = $700
+```
+
+### 11D. Testing exposed credentials
+
+**Only test with user approval and document results:**
+
+```bash
+# Test if an RPC key works (check error message)
+curl -s "https://mainnet.helius-rpc.com/?api-key=EXPOSED_KEY" \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+
+# Expected responses:
+# - origin/referrer error = good (protected)
+# - valid "ok" result = bad (key works from anywhere)
+# - invalid key error = already rotated
+```
+
+**Document test results in findings:**
+- Tested and protected by origin/referrer allowlist (still should be backend)
+- Tested and works without restrictions (CRITICAL)
+- Not tested (would require a service account)
+
+**Never** sign or send transactions with a leaked keypair, even to "prove" it.
+A read-only `getHealth` / balance check is the proof. On-chain signing is out.
+
+### 11E. Reporting frontend vulnerabilities
+
+Frontend findings can be CRITICAL when they enable: direct financial loss
+(relayer/fee drain), auth bypass (bearer tokens), database access (connection
+strings), wallet control (leaked keypair), or mass user data breach (admin keys).
+
+```markdown
+# <PROJECT> - CRITICAL: Exposed <Service> API Key Enables Financial Drain
+
+**Researcher:** deviykee
+**Severity:** CRITICAL - $X,000-$Y,000 potential loss
+**Component:** Frontend bundle (`/assets/index-*.js`)
+**Status:** Publicly accessible, live exploitable
+
+## What this means in plain language
+The project's <Service> API key is hardcoded in publicly accessible JavaScript.
+Anyone can extract it and <specific impact>. This could cost the project
+$X,000-$Y,000 if exploited.
+
+## Affected components
+- **Frontend bundle:** https://<website>/assets/index-<hash>.js
+- **Exposed credential:** `<KEY_PREFIX>...<KEY_SUFFIX>`
+- **Service:** <Service Name> (<what it controls>)
+
+## Root cause
+Keys are embedded in client-side JavaScript instead of being protected
+server-side. The key appears at line <N> in the bundle.
+
+## Attack scenario
+1. Attacker views page source or inspects network requests
+2. Extracts the key from the JavaScript bundle (trivial, no tools needed)
+3. Uses the key to <specific attack>
+4. Project incurs costs or service disruption
+
+## Impact
+- **Auth required:** None (public website)
+- **Financial impact:** $X-Y estimated (see calculation)
+- **Exploitation difficulty:** Trivial (view-source)
+- **Scope:** All users, entire service budget
+
+## Proof of concept
+```bash
+curl -s https://<website>/assets/index-<hash>.js | grep -o "<pattern>"
+# [OPTIONAL: test key with approval] Result: <works or protected>
+```
+
+## Fix
+1. **Immediate (< 1 hour):** rotate the key, check usage logs, set spend alerts.
+2. **Permanent (this week):** move calls to a backend proxy, store keys in
+   server-side env vars, add per-user rate limiting and request auth.
+3. **Architecture:**
+   ```
+   Before: Browser -> Service API (exposed key)
+   After:  Browser -> Your Backend -> Service API (key in secrets)
+   ```
+```
+
+### 11F. Update coverage tracking
+
+Add frontend security to coverage.md:
+
+```markdown
+## Frontend Security Analysis
+
+| Component | Analyzed | Findings | Severity |
+|-----------|----------|----------|----------|
+| JavaScript bundles | yes | 5 exposed keys | CRITICAL |
+| API endpoints | yes | 2 internal paths | MEDIUM |
+| localStorage usage | yes | No PII stored | PASS |
+| WebSocket endpoints | yes | Oracle feeds exposed | LOW |
+
+**Frontend security grade:** F (critical issues found)
+```
+
+### 11G. When to run frontend analysis
+
+**Always run Step 11 when:**
+- Target has a web frontend (most Solana DeFi projects)
+- User asks to "check frontend" or "data leakage"
+- Looking for quick wins before deep program analysis
+- Program ids are hard to find (frontend config hides them)
+
+**Run before or in parallel with program analysis:**
+- Step 2 (locate programs) can use frontend findings
+- Frontend keys might indicate centralization / trust risks
+- Exposed admin keypairs change the threat model
+
+### 11H. Frontend findings checklist
+
+- [ ] All exposed credentials documented with severity
+- [ ] Financial impact calculated for relayer / fee-sponsorship keys
+- [ ] Testing results documented (what works, what's protected)
+- [ ] Architecture recommendations provided
+- [ ] Immediate and long-term fixes specified
+- [ ] Other projects notified if they share the same vulnerable pattern
+
+### 11I. Operating rules update (add to main list)
+
+14. **Frontend security is mandatory.** Every hunt checks the frontend for
+    exposed credentials, even when focusing on programs. Hardcoded API keys,
+    bearer tokens, leaked keypairs, and relayer/fee-sponsorship keys can be as
+    critical as program bugs. Run Step 11 before or during program analysis.
+15. **Financial impact for infrastructure keys.** When relayer / fee-sponsorship
+    keys or authenticated service keys are exposed, calculate the financial
+    impact: `max_operations x cost_per_op x time_until_detected`. State it in the
+    severity justification.
+16. **Test frontend exposures responsibly.** Only test exposed keys with user
+    approval. Document whether keys are protected by origin/referrer allowlisting.
+    Testing is read-only verification, never exhausting rate limits or budgets,
+    and never signing transactions with a leaked keypair.
+
+**See also operating rule 13** (chain leads to a Critical). A frontend Low,
+Medium, or High stays in scope when it is a step toward a Critical, and a
+confirmed one is reported at that severity. Do not upgrade it on its own.
+
+---
+
 ## Appendix A - Solana cheat-sheet
 
 ```bash
@@ -892,6 +1300,8 @@ Use after Step 5 foundation map. One chunk + one angle per invocation.
 12. CPI program id not pinned?
 13. Init frontrun of global config?
 14. Pause/blacklist bypass on alternate path?
+15. Which Low, Medium, or High is not a Critical alone, but is a step on a path
+    to one? Name the missing piece (operating rule 13).
 
 ---
 
@@ -899,14 +1309,18 @@ Use after Step 5 foundation map. One chunk + one angle per invocation.
 
 - Keep private: INTAKE fills, program ids of live bugs, draft reports/DMs, live PoCs until patched.
 - Master findings table stays updated when severity changes.
-- Killed Critical candidates listed in hunt notes (prevents re-opening bad claims).
+- Killed Critical candidates and killed chain leads listed in hunt notes
+  (prevents re-opening bad claims).
+- Open Low, Medium, and High chain leads stay on the master findings table at
+  their real severity (operating rule 13).
 - Prefer local exact-logic unit tests for accounting bugs; use live RPC for magnitude.
 - **coverage.md** updated incrementally; low Z% stated openly; exclusions listed with reasons.
 
-**Reminder:** simulator only, honest severity, ask don't threaten, kill your own bad
-findings, private until patched, stay token-conservative and route mechanical
-work to smaller models. Map first, multi-angle second, product-type deep dive,
-PoC before Critical, **track coverage so thoroughness is real**. That discipline
-is the job.
+**Reminder:** simulator only, honest severity, keep Low / Medium / High chain
+leads and report every confirmed Low, Medium, and High (operating rule 13), ask
+don't threaten, kill your own bad findings, private until patched, stay
+token-conservative and route mechanical work to smaller models. Map first,
+multi-angle second, product-type deep dive, frontend check (Step 11), PoC before
+Critical, **track coverage so thoroughness is real**. That discipline is the job.
 
 deviykee

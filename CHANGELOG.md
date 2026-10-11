@@ -1,5 +1,37 @@
 # Changelog
 
+## [v0.2.0] - 2026-10-12
+
+### Added
+
+- **Operating rule 13, chain leads to a Critical.** Hunt and keep a Low, Medium,
+  or High when it is a usable step toward unauthenticated theft, a freeze, or
+  unbounded loss. Record it at its honest severity, name the missing piece, try
+  the chain before closing the path, and report every confirmed Low, Medium, and
+  High at that severity (sim/bankstest PoC = chain severity). Pointers in Steps
+  6.5, 8, the Step 9 findings table (`chain-to-critical` column), Appendix B
+  prompt 15, and Appendix C. Description frontmatter mentions the same rule.
+- **Operating rule 12, overcome blockers proactively.** Install/use decompilers,
+  explorers, RPC providers, APIs, or scripts instead of stopping at "no source"
+  or "tool not installed".
+- **Step 10A official contacts (mandatory):** hunt the real security inbox from
+  official docs / SECURITY.md / security.txt / bounty platform / verified org X
+  before any DM. Write `reports/contacts.md` with URL + exact quote. New
+  `tools/step10_contact_hunt.sh` fetches pages, extracts emails/bounty links/
+  quotes, and decodes Cloudflare `data-cfemail`. INTAKE fields `SECURITY_EMAIL`
+  and `DISCLOSURE`.
+- **Step 11 Frontend Security Audit (always check):** scan the web bundle for
+  exposed API keys, bearer tokens, leaked keypairs, RPC/relayer keys, Solana
+  pubkeys, DB strings, and localStorage leakage; financial-impact calc for
+  relayer/fee-sponsorship keys; responsible read-only testing (never sign with a
+  leaked keypair); report template; coverage update. Inline
+  `tools/step11_frontend_security.sh` scanner and operating rules 14-16.
+- Severity placeholders in Step 9 now span `Low/Medium/High/Critical`.
+
+### Changed
+
+- Report/DM researcher identity points to the security-research repo.
+
 ## [v0.1.1] - 2026-08-11
 
 ### Changed

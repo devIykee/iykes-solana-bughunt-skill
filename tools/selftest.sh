@@ -27,6 +27,7 @@ check step3a ./step3_account_map.sh --help
 check step4 ./step4_auth_triage.sh --help
 check step7 ./step7_poc_scaffold.sh --help
 check step9 python3 ./step9_report_skeleton.py --help
+check step10c ./step10_contact_hunt.sh --help
 check step10 python3 ./step10_dm_skeleton.py --help
 
 # filler dry-run

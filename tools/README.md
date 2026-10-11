@@ -91,9 +91,32 @@ Smoke-check graceful failures:
 
 ---
 
+### `step10_contact_hunt.sh` - Step 10A
+
+**Purpose:** Fetch official docs/forum pages and print candidate security inboxes
+(emails, Immunefi/HackerOne/Cantina/Code4rena links) with nearby quote lines.
+Decodes Cloudflare `data-cfemail`. Does not send mail; you still write
+`reports/contacts.md` with URL + exact quote and reject lookalikes.
+
+**Usage:** `step10_contact_hunt.sh <URL> [URL ...]`
+
+**Exit:** `0` some fetch ok · `1` all fetches failed · `2` usage
+
+---
+
 ### `step10_dm_skeleton.py` - Step 10
 
 **Purpose:** Fill first private DM text.
+
+---
+
+### `step11_frontend_security.sh` - Step 11
+
+**Purpose:** Scan the web frontend bundle for hardcoded secrets (API keys, bearer
+tokens, leaked keypairs, RPC/relayer keys, Solana pubkeys, DB strings). Created
+inline from the heredoc in `SKILL.md` Step 11A on first run.
+
+**Usage:** `step11_frontend_security.sh <WEBSITE> [OUTPUT_DIR]`
 
 ---
 
