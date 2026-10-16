@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.3.0] - 2026-10-16
+
+### Added
+
+- **STEP 3.5 - Closed-source decompilation.** When no source is available, recover
+  Rust that recompiles to the on-chain binary (or high-fidelity equivalent).
+  Based on the OtterSec GoonFi V2 methodology (Oct 2026): function-by-function
+  recovery, deterministic instruction scoring against recompilation, architect +
+  worker agents, judge that only merges score improvements with no cheating
+  constructs, and final global fixes (function order, panic locations). Tooling
+  pointers: Binary Ninja + bn-ebpf-solana, patina-research style pipeline, sbpf
+  disassembler, matching Solana platform-tools. New optional prep helper
+  referenced in the tools table. Operating rule 12 and the Step 3 gate now
+  direct closed-source paths here. Description frontmatter mentions the
+  capability.
+
+### Changed
+
+- Step 3 "No source" gate now routes to Step 3.5 before falling back to IDL /
+  transaction analysis.
+
 ## [v0.2.0] - 2026-10-12
 
 ### Added
