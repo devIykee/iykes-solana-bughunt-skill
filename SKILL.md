@@ -13,7 +13,9 @@ description: >-
   bridge), and honest severity (including kill temporary-vs-persistent
   conditions). Keep a Low, Medium, or High when it is a lead or attack-path step
   toward a Critical, and report every confirmed Low, Medium, or High at its real
-  severity. Always check the frontend for exposed secrets (Step 11). Maintain
+  severity. Always check the frontend for exposed secrets (Step 11). For
+  closed-source programs, recover Rust via function-by-function decompilation
+  scored against recompilation to the on-chain binary (Step 3.5). Maintain
   coverage.md incrementally (files opened, paths traced, %, exclusions); never
   imply a complete audit when coverage is low.
   Use when the user names a Solana target (project, program id, repo, or
@@ -165,9 +167,12 @@ export SOLANA_URL="$RPC"
 11. **No em dashes** in reports or DMs (use commas, periods, or a normal hyphen).
 12. **Overcome blockers proactively.** When you hit a blocker (closed-source
     program, missing IDL, unsupported cluster, unavailable data, missing tool),
-    actively search for and install/use something that solves it: decompilers,
-    disassemblers (`solana program dump` + a BPF/sBPF disassembler), explorers,
-    RPC providers, APIs, or alternative data sources. Install packages with
+    actively search for and install/use something that solves it: decompilers
+    (Binary Ninja + bn-ebpf-solana, patina-research style agents, sbpf
+    disassembler), disassemblers (`solana program dump` + BPF/sBPF tools),
+    explorers, RPC providers, APIs, or alternative data sources. For closed-source
+    Solana programs, follow **STEP 3.5** (function-by-function recovery scored
+    against recompilation to the on-chain binary). Install packages with
     `cargo`/`pip`/`npm` when needed and write small scripts to automate repeats.
     Do NOT stop at "no source" or "tool not installed"; find a way forward and
     document the tools/methods so future hunts benefit.
@@ -291,6 +296,7 @@ instead of hanging. Smoke-check: `./tools/selftest.sh`.
 | `tools/step2_bundle_grep.sh` | 2B | `<WEBSITE>` | base58-ish program ids / pubkeys from JS | Find hidden frontend config ids |
 | `tools/step3_surface_map.sh` | 3 | `<RPC> <PROGRAM_ID>` | executable?, owner, data len, optional IDL | Verified vs opaque program path |
 | `tools/step3_account_map.sh` | 3 | `<RPC> <PUBKEY> [label]` | owner, lamports, data len, executable | Map config / vault / mint accounts |
+| `tools/step3_5_decompile_prep.sh` | 3.5 | `<RPC> <PROGRAM_ID> [SLOT]` | dumped .so + basic metadata / strings | Bootstrap closed-source decompilation |
 | `tools/step4_auth_triage.sh` | 4 | `<SRC_ROOT>` | constraint/signer/CPI grep scoreboard | Free-win missing-auth / loose seeds |
 | `tools/step7_poc_scaffold.sh` | 7 | `<POC_DIR> [anchor\|native]` | Anchor or banks-client PoC skeleton | Repeatable sim-only proof setup |
 | `tools/step9_report_skeleton.py` | 9 | INTAKE + severity + title (+ optional) | filled Step 9 report skeleton | Same report shape every hunt |
@@ -371,13 +377,93 @@ tools exist; writes raw notes under the hunt dir when possible.
 Gate:
 - **Source available** (repo audit or verified) -> inventory `programs/**/src`,
   set **Y** in `coverage.md`, start reading value-moving instructions.
-- **No source** -> continue with IDL (if any), account layouts from explorers,
-  and transaction history; severity claims need stronger PoC discipline.
+- **No source** -> run **STEP 3.5** (closed-source decompilation) first. If
+  byte-identical or high-fidelity Rust is recovered, treat it as source and
+  continue. Otherwise continue with IDL (if any), account layouts from
+  explorers, transaction history, and disassembly; severity claims need
+  stronger PoC discipline.
 - **Source-only / pre-deploy** -> treat repo as scope; local unit PoCs; note
   pre-launch in the report Status line.
 
 After inventory: list exclusions (clients, generated, vendor crates you will not
 re-audit). Update coverage as each source file is read.
+
+---
+
+## STEP 3.5 - Closed-source decompilation (Rust / Anchor / native)
+
+When Step 3 reports no source, treat the on-chain program as recoverable.
+Goal (from OtterSec GoonFi V2 work, Oct 2026): recover Rust source that
+**recompiles to the exact on-chain binary** (or as close as practical).
+Once you have that source, ordinary Steps 4-9 apply. Never claim a full audit
+on partial decompilation; track recovered functions in `coverage.md`.
+
+### 3.5A. Dump and prepare the binary
+
+```bash
+# dump the exact deployed program (use the slot of interest if upgraded)
+solana program dump <PROGRAM_ID> --url "$RPC" hunt-dir/program.so
+# optional: dump at a historical slot if the program was upgraded
+# solana program dump <PROGRAM_ID> --url "$RPC" --slot <SLOT> hunt-dir/program.so
+
+# extract metadata, strings, and basic disassembly (install tools as needed)
+file hunt-dir/program.so
+readelf -S hunt-dir/program.so
+strings hunt-dir/program.so | head -100
+# if sbpf-disassembler / sbpf is available:
+# cargo install sbpf  # or from blueshift-gg/sbpf
+# sbpf disassemble hunt-dir/program.so > hunt-dir/disasm.txt
+```
+
+Also collect: IDL (if any), recent transactions, account layouts, and any
+public docs. These bound the decompilation.
+
+### 3.5B. Recommended tooling (install proactively)
+
+Prefer tools that support Solana sBPF / eBPF and can feed an agent:
+
+| Tool | Purpose | Notes |
+|---|---|---|
+| Binary Ninja + [bn-ebpf-solana](https://github.com/otter-sec/bn-ebpf-solana) | Static analysis, LLIL lifting, syscall signatures, memory maps, PDA/instruction grouping | MCP branch available for agent integration; install both `bn-ebpf-solana` and `binary_ninja_mcp` |
+| [patina-research](https://github.com/renato-osec/patina-research) style pipeline | Agentic multi-stage decompilation (chela metadata, carpace deps, nacre type layouts, marinator renaming, signer signatures, flower blocks, mastermind full functions) | Currently Binary Ninja gated; adapt the agent hierarchy |
+| sbpf / sbpf-disassembler | Fast disassembly of .so | Useful for initial function list and scoring input |
+| Solana platform-tools (matching version) | Recompilation for scoring | Match the original toolchain (e.g. v1.48 for GoonFi); use `cargo build --release --locked` or Anchor equivalent |
+| Alchemy Account Archive / Solrays / explorers | Historical accounts, transactions | Bound state and instruction usage |
+
+Install what is missing (`cargo`, Binary Ninja plugins, Python MCP servers, etc.).
+Document what you used in hunt notes so later runs are faster.
+
+### 3.5C. Function-by-function recovery with recompilation scoring
+
+1. Identify entrypoints and instruction handlers (branch on first instruction-data byte is a strong heuristic). Group by PDA / account access using Binary Ninja or static analysis.
+2. Split work: an architect agent maps functions to instructions; worker agents take disjoint call-graph slices, starting from leaves that do not match known library functions.
+3. For each function, produce compilable Rust. Prefer readable, idiomatic code over raw assembly.
+4. Score against the original binary (deterministic, no LLM in the judge):
+   - Align target instructions with recompiled function instructions.
+   - Penalties (example from GoonFi work): 100 per missing/extra instruction, 60 per order error, 5 per wrong register/immediate, 1 per byte stack-offset error.
+   - Score 0 = perfect match for that function.
+5. Ban cheating constructs that achieve score 0 without real recovery: `asm!`, excessive `black_box`/`volatile`, `transmute`/`cast` abuse, unnecessary `#[no_mangle]` on internals, etc. Restrict `#[no_mangle]` to entrypoints and custom panic. Prefer `#[repr(C)]` for deterministic layouts. Exclude pure library functions from scoring (they come from Cargo.toml).
+6. Judge on every candidate: rebuild the whole program with the original toolchain, rescore all functions. Merge only if total score improves, no function worsens, and no banned constructs appear.
+7. After per-function matches, fix global differences: function emission order (Rust emits in source order), panic location strings (exact project layout), and any prologue padding. Reorder source and recreate directory structure until the binary is byte-identical (or the residual diff is explained and minimal).
+8. Verify: compile and compare hashes, or reconstruct from the original deploy transaction's loader buffer writes (see GoonFi VERIFY.sh pattern). Optional: submit to a verifiable-build service once adjusted.
+
+### 3.5D. Practical agent workflow
+
+- Orchestrator (high-capability model) owns the goal and the judge.
+- Subagents (smaller/faster models) handle single functions or narrow slices.
+- Feed one function + its HLIL/LLIL + call context at a time. Do not dump the entire binary.
+- Keep a running score table and a list of remaining functions.
+- When a function scores 0 and passes the no-cheat check, mark it recovered and update `coverage.md`.
+- If full byte-identical recovery is impractical (time, tooling, or complexity), stop at high-fidelity recovery of value-moving paths and continue the hunt on those paths with explicit coverage notes.
+
+### 3.5E. After recovery
+
+Treat recovered source as the audit target. Run Steps 4-9 on it. Update coverage with recovered files/paths. Note in the report that source was recovered via decompilation and whether the binary match was perfect or approximate. The GoonFi case showed that once readable source exists, ordinary audit techniques (including an auditing agent) can surface Critical issues that were invisible in the binary alone.
+
+Gate:
+- Byte-identical or high-fidelity source recovered -> proceed to Step 4 with the recovered source as `SRC_ROOT`.
+- Only partial recovery -> continue with recovered paths + IDL/disassembly; state the coverage limit explicitly.
+- Tooling blocked and no progress after proactive attempts -> fall back to IDL + transaction analysis and document the blocker.
 
 ---
 
