@@ -1,3 +1,7 @@
+## 2026-10-24
+
+- Step 11: explicitly hunt unauthenticated server/API/database access (writes, IDOR, open Firebase/Supabase/GraphQL) as a primary frontend objective, not only leaked keys.
+
 # Changelog
 
 ## [v0.3.0] - 2026-10-16

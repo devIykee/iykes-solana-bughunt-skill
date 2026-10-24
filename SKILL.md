@@ -101,42 +101,6 @@ Rules:
 
 ---
 
-## Attack paths to explore FIRST (Solana: Anchor / native Rust)
-
-Before anything else, run every target against this checklist. These are the
-highest-yield classes for Solana bounties. For each one, ask "can a stranger
-reach this with valid instructions and accounts they control?" and write a
-one-line verdict (reachable / blocked / N/A) into `coverage.md`. Chase the
-reachable ones to a local PoC (solana-program-test, bankrun, or local
-validator with cloned accounts). Order is rough priority: skip none without a
-reason logged.
-
-1. Fund draining - theft via flawed transfer, accounting, or authorization logic.
-2. Missing signer checks - instruction runs privileged logic without verifying the expected signer.
-3. Missing owner checks - program accepts an account without verifying it is owned by the expected program.
-4. Account confusion / type cosplay - a wrongly typed account passes a loose discriminator check.
-5. PDA seed collision - predictable or colliding seeds let an attacker forge accounts.
-6. Malicious token program - fake or malicious SPL token program passed where the real one is expected.
-7. CPI reentrancy - reentrant calls through program invocations bypass state checks.
-8. Account revival - closing accounts without zeroing data (or discriminator) lets them be reinitialized.
-9. Missing rent-exemption checks - accounts closed or garbage-collected mid-logic, breaking assumptions.
-10. Arithmetic and logic errors - overflow/underflow (release builds wrap unless checked), rounding, off-by-one in token accounting.
-11. Oracle manipulation - flash-loan or thin-liquidity price distortion, stale or single-source feeds (check Pyth/Switchboard staleness and confidence).
-12. Vault / share inflation - first depositor manipulates share price via direct token donation.
-13. Donation attacks - direct token transfer desyncs internal balance tracking.
-14. Flash-loan attacks - borrowed capital manipulating accounting or governance in one transaction.
-15. Liquidation manipulation - manipulating price or health factor to trigger unfair liquidations.
-16. Governance attacks - flash-loaned voting power, low-quorum exploitation, proposal griefing.
-17. Signature and replay - missing nonce, missing cluster identifier, replay across clusters (ed25519 / secp256k1 instruction introspection).
-18. Upgrade authority risk - unprotected or overly broad program upgrade authority.
-19. Denial of service - compute-unit exhaustion, account lockups, blocking shared state.
-20. Front-running and MEV - ordering exploitation, sandwiches via leader / Jito bundle visibility.
-21. Insecure randomness - predictable on-chain randomness (slot, clock, recent blockhash).
-22. Cross-chain bridge attacks - message replay, fake proof acceptance, signature bypass on destination.
-23. Merkle proof manipulation - malformed or duplicate leaves, missing proof uniqueness checks.
-
----
-
 ## INTAKE - fill this in before running
 
 Fill only fields you actually know. In the written report, **omit any key whose value is
@@ -1069,7 +1033,7 @@ Who's the right person, or who do I talk to on the team?
 ## STEP 11 - Frontend Security Audit (always check)
 
 **Run this step for every hunt, regardless of product type.** Frontend
-vulnerabilities can be as critical as on-chain program bugs, especially exposed
+vulnerabilities can be as critical as on-chain program bugs, especially unauthenticated server/database access and exposed
 API keys that control RPC access, relayer/fee sponsorship, or authentication.
 
 ### 11A. Bundle analysis - extract frontend secrets
@@ -1361,7 +1325,11 @@ Add frontend security to coverage.md:
 14. **Frontend security is mandatory.** Every hunt checks the frontend for
     exposed credentials, even when focusing on programs. Hardcoded API keys,
     bearer tokens, leaked keypairs, and relayer/fee-sponsorship keys can be as
-    critical as program bugs. Run Step 11 before or during program analysis.
+    critical as program bugs. Also hunt for unauthenticated (or under-
+    authenticated) server, API, and database access reachable from the
+    frontend — open write endpoints, IDOR, and misconfigured
+    Firebase/Supabase/GraphQL are primary targets (see 11J). Run Step 11
+    before or during program analysis.
 15. **Financial impact for infrastructure keys.** When relayer / fee-sponsorship
     keys or authenticated service keys are exposed, calculate the financial
     impact: `max_operations x cost_per_op x time_until_detected`. State it in the
@@ -1374,6 +1342,64 @@ Add frontend security to coverage.md:
 **See also operating rule 13** (chain leads to a Critical). A frontend Low,
 Medium, or High stays in scope when it is a step toward a Critical, and a
 confirmed one is reported at that severity. Do not upgrade it on its own.
+
+
+### 11J. Unauthenticated server / database access (primary frontend hunt goal)
+
+**When hunting a frontend, exposed secrets are one path. The other — and often
+higher-impact — path is unauthenticated (or under-authenticated) access to the
+project's backend, APIs, or database.** Treat this as a first-class objective of
+Step 11, not an afterthought.
+
+You are looking for ways a stranger (no session, no wallet signature, no admin
+cookie) can:
+
+1. **Read or write the database** — open Firebase / Supabase / Appwrite / Hasura
+   rules, leaked service-role keys, GraphQL that accepts mutations without auth,
+   REST that creates / updates / deletes rows without a check.
+2. **Call privileged server endpoints** — `/admin`, `/internal`, `/debug`,
+   webhooks with no shared-secret, unsigned cloud-function URLs, open CORS +
+   cookie-less state-changing POSTs.
+3. **Bypass auth on user actions** — IDOR (change `userId` / `wallet` in the
+   request and hit another account), missing ownership checks on update/delete,
+   unsigned "claim" / "payout" / "credit" APIs that trust a client-supplied
+   address.
+4. **Abuse storage / queues** — public S3 / GCS / R2 buckets writable by anyone,
+   open Redis / Mongo endpoints, message queues that accept unauthenticated
+   publish.
+5. **Chain a frontend secret into server access** — a leaked Bearer / service key
+   that unlocks (1)–(4). Rate-limit-only keys are usually Low; keys that mutate
+   production data are High/Critical.
+
+**How to hunt (read-only / non-destructive first):**
+- From the bundle, list every API base URL, GraphQL endpoint, Firebase config,
+  Supabase URL + `anon` / `service_role` key, and webhook path.
+- For each write-shaped endpoint (`POST`/`PUT`/`PATCH`/`DELETE`, GraphQL
+  mutation, Firebase `.set` / `.update`, Supabase `.insert` / `.upsert`):
+  try the call **without** cookies, Authorization headers, or wallet signatures.
+  Document status codes and whether the mutation stuck.
+- Check Firebase / Supabase security rules if the project is public or the
+  rules file ships in the bundle / repo. Look for `allow read, write: if true`
+  and `service_role` used from the client.
+- IDOR: replay a legitimate update with a different `id` / `wallet` / `userId`.
+- Never dump production user data, never delete, never spam write volume. One
+  inert prove-it row (or a dry-run that the server rejects after the auth check)
+  is enough for the PoC. Prefer staging / the project's own test fixtures when
+  available.
+
+**Severity (honest):**
+- Unauthenticated **write** that changes balances, credits, inventory, roles, or
+  payouts → Critical / High (map to the program's payout table).
+- Unauthenticated **read** of PII, private keys, or full DB dumps → High.
+- Unauthenticated read of non-sensitive public-ish data, or write that only
+  affects the attacker's own empty sandbox → Low / Informational.
+- Exposed `anon` keys that are designed to be public (Supabase anon with tight
+  RLS) are not findings unless RLS actually fails.
+
+Record every tested endpoint in `frontend-security/api-auth-matrix.md`
+(method, path, auth required?, stranger result, data impact). Failures to
+mutate as a stranger go in the kill-log, not the findings table.
+
 
 ---
 
